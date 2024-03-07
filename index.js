@@ -1,7 +1,7 @@
 import { execSync } from 'child_process';
 import { readFileSync } from 'fs';
 import firebase from 'firebase/compat/app';
-import 'firebase/compat/database';
+import 'firebase/compat/firestore';
 
 const firebaseConfig = {
     apiKey: "AIzaSyABm9M7XceFH6pSvvbMuRJw3n5nBeak3L0",
@@ -57,12 +57,33 @@ function readBrewfileData() {
 
 async function uploadBrewfileToFirebase(brewfileData) {
     try {
-        const dbRef = firebase.database().ref('brewfiles');
-        await dbRef.set(brewfileData);
-        console.log('Brewfile uploaded to Firebase successfully.');
+        const db = firebase.firestore();
+        const collectionRef = db.collection('brewfiles');
+        await collectionRef.add({ data: brewfileData });
+        console.log('Brewfile uploaded to Firestore successfully.');
     } catch (error) {
-        console.error('Error occurred while uploading Brewfile to Firebase:', error);
+        console.error('Error occurred while uploading Brewfile to Firestore:', error);
     }
+}
+
+async function parseBrewfile(brewfileData) {
+    const packages = {};
+    const lines = brewfileData.split('\n');
+    
+    lines.forEach((line, index) => {
+        if (line.startsWith('tap')) {
+            const [, name] = line.split(' ');
+            packages[index + 1] = { name, packageManager: 'tap' };
+        } else if (line.startsWith('brew')) {
+            const [, name] = line.split(' ');
+            packages[index + 1] = { name, packageManager: 'brew' };
+        } else if (line.startsWith('vscode')) {
+            const [, name] = line.split(' ');
+            packages[index + 1] = { name, packageManager: 'vscode' };
+        }
+    });
+
+    return packages;
 }
 
 async function main() {
@@ -74,7 +95,9 @@ async function main() {
         runBrewBundleDump();
         const brewfileData = readBrewfileData();
         if (brewfileData) {
-            await uploadBrewfileToFirebase(brewfileData);
+            const packages = await parseBrewfile(brewfileData);
+            console.log(packages);
+            await uploadBrewfileToFirebase(packages);
         } else {
             console.error('No Brewfile data found.');
         }
