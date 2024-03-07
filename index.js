@@ -1,9 +1,7 @@
-#!/usr/bin/env node
-
 import { execSync } from 'child_process';
-import firebase from 'firebase/app';
-import 'firebase/database';
-import fs from 'fs';
+import { readFileSync } from 'fs';
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/database';
 
 const firebaseConfig = {
     apiKey: "AIzaSyABm9M7XceFH6pSvvbMuRJw3n5nBeak3L0",
@@ -18,7 +16,6 @@ const firebaseConfig = {
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 
-// Function to check if Homebrew is installed
 function isHomebrewInstalled() {
     try {
         execSync('brew --version');
@@ -28,7 +25,6 @@ function isHomebrewInstalled() {
     }
 }
 
-// Function to install Homebrew
 function installHomebrew() {
     console.log('Installing Homebrew...');
     try {
@@ -39,7 +35,6 @@ function installHomebrew() {
     }
 }
 
-// Function to run brew bundle dump
 function runBrewBundleDump() {
     console.log('Running brew bundle dump...');
     try {
@@ -50,7 +45,16 @@ function runBrewBundleDump() {
     }
 }
 
-// Function to upload Brewfile to Firebase
+function readBrewfileData() {
+    try {
+        const brewfileData = readFileSync('Brewfile', 'utf-8');
+        return brewfileData;
+    } catch (error) {
+        console.error('Error occurred while reading Brewfile:', error);
+        return null;
+    }
+}
+
 async function uploadBrewfileToFirebase(brewfileData) {
     try {
         const dbRef = firebase.database().ref('brewfiles');
@@ -68,13 +72,11 @@ async function main() {
     } else {
         console.log('Homebrew is already installed.');
         runBrewBundleDump();
-        
-        // Read the contents of the Brewfile
-        try {
-            const brewfileData = fs.readFileSync('Brewfile', 'utf8');
+        const brewfileData = readBrewfileData();
+        if (brewfileData) {
             await uploadBrewfileToFirebase(brewfileData);
-        } catch (error) {
-            console.error('Error occurred while reading Brewfile:', error);
+        } else {
+            console.error('No Brewfile data found.');
         }
     }
 }
